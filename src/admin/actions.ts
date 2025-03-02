@@ -6,6 +6,55 @@ import { testOpenAiConnection } from '@/platforms/openai';
 import { testDatabaseConnection } from '@/platforms/postgres';
 import { testStorageConnection } from '@/platforms/storage';
 import { APP_CONFIGURATION } from '@/app/config';
+import { getStorageUploadUrlsNoStore } from '@/platforms/storage/cache';
+import { getPhotosMetaCached, getUniqueTagsCached } from '@/photo/cache';
+import { getInsightsIndicatorStatus } from '@/admin/insights/server';
+
+export type AdminData = Awaited<ReturnType<typeof getAdminDataAction>>;
+
+export const getAdminDataAction = async () =>
+  runAuthenticatedAdminServerAction(async () => {
+    const [
+      photosCount,
+      photosCountHidden,
+      tagsCount,
+      uploadsCount,
+      insightsIndicatorStatus,
+    ] = await Promise.all([
+      getPhotosMetaCached()
+        .then(({ count }) => count)
+        .catch(() => 0),
+      getPhotosMetaCached({ hidden: 'only' })
+        .then(({ count }) => count)
+        .catch(() => 0),
+      getUniqueTagsCached()
+        .then(tags => tags.length)
+        .catch(() => 0),
+      getStorageUploadUrlsNoStore()
+        .then(urls => urls.length)
+        .catch(e => {
+          console.error(`Error getting blob upload urls: ${e}`);
+          return 0;
+        }),
+      getInsightsIndicatorStatus(),
+    ]);
+
+    const photosCountTotal = (
+      photosCount !== undefined &&
+      photosCountHidden !== undefined
+    )
+      ? photosCount + photosCountHidden
+      : undefined;
+
+    return {
+      photosCount,
+      photosCountHidden,
+      photosCountTotal,
+      tagsCount,
+      uploadsCount,
+      insightsIndicatorStatus,
+    };
+  });
 
 const scanForError = (
   shouldCheck: boolean,

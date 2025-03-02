@@ -22,7 +22,6 @@ import { redirect } from 'next/navigation';
 import { deleteFile } from '@/platforms/storage';
 import {
   getPhotosCached,
-  getPhotosMetaCached,
   revalidateAdminPaths,
   revalidateAllKeysAndPaths,
   revalidatePhoto,
@@ -291,9 +290,9 @@ export const renamePhotoTagGloballyAction = async (formData: FormData) =>
     }
   });
 
-export const deleteUploadAction = async (url: string) =>
+export const deleteUploadsAction = async (urls: string[]) =>
   runAuthenticatedAdminServerAction(async () => {
-    await deleteFile(url);
+    await Promise.all(urls.map(url => deleteFile(url)));
     revalidateAdminPaths();
   });
 
@@ -415,10 +414,6 @@ export const streamAiImageQueryAction = async (
 
 export const getImageBlurAction = async (url: string) =>
   runAuthenticatedAdminServerAction(() => blurImageFromUrl(url));
-
-export const getPhotosHiddenMetaCachedAction = async () =>
-  runAuthenticatedAdminServerAction(() =>
-    getPhotosMetaCached({ hidden: 'only' }));
 
 // Public/Private actions
 

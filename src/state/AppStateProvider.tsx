@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, ReactNode, useCallback } from 'react';
+import { useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { AppStateContext } from './AppState';
 import { AnimationConfig } from '@/components/AnimateItems';
 import usePathnames from '@/utility/usePathnames';
@@ -12,17 +12,27 @@ import {
   MATTE_PHOTOS,
   SHOW_ZOOM_CONTROLS,
 } from '@/app/config';
-import { getPhotosHiddenMetaCachedAction } from '@/photo/actions';
 import { ShareModalProps } from '@/share';
 import { storeTimezoneCookie } from '@/utility/timezone';
-import { getShouldShowInsightsIndicatorAction } from '@/admin/insights/actions';
-import { InsightIndicatorStatus } from '@/admin/insights';
+import { AdminData, getAdminDataAction } from '@/admin/actions';
+import {
+  storeAuthEmailCookie,
+  clearAuthEmailCookie,
+  hasAuthEmailCookie,
+} from '@/auth/client';
+import { useRouter, usePathname } from 'next/navigation';
+import { isPathAdmin, PATH_SIGN_IN } from '@/app/paths';
+import { INITIAL_UPLOAD_STATE, UploadState } from '@/admin/upload';
 
 export default function AppStateProvider({
   children,
 }: {
   children: ReactNode
 }) {
+  const router = useRouter();
+
+  const pathname = usePathname();
+
   const { previousPathname } = usePathnames();
 
   // CORE
@@ -34,24 +44,27 @@ export default function AppStateProvider({
     useState<AnimationConfig>();
   const [shouldRespondToKeyboardCommands, setShouldRespondToKeyboardCommands] =
     useState(true);
+  // UPLOAD
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+  const [uploadState, _setUploadState] =
+    useState(INITIAL_UPLOAD_STATE);
   // MODAL
   const [isCommandKOpen, setIsCommandKOpen] =
     useState(false);
   const [shareModalProps, setShareModalProps] =
     useState<ShareModalProps>();
-  // ADMIN
+  // AUTH
   const [userEmail, setUserEmail] =
     useState<string>();
+  const [isUserSignedInEager, setIsUserSignedInEager] =
+    useState(false);
+  // ADMIN
   const [adminUpdateTimes, setAdminUpdateTimes] =
     useState<Date[]>([]);
-  const [hiddenPhotosCount, setHiddenPhotosCount] =
-    useState(0);
   const [selectedPhotoIds, setSelectedPhotoIds] =
     useState<string[] | undefined>();
   const [isPerformingSelectEdit, setIsPerformingSelectEdit] =
     useState(false);
-  const [insightIndicatorStatus, setInsightIndicatorStatus] =
-    useState<InsightIndicatorStatus>();
   // DEBUG
   const [isGridHighDensity, setIsGridHighDensity] =
     useState(HIGH_DENSITY_GRID);
@@ -68,36 +81,68 @@ export default function AppStateProvider({
   const [shouldDebugRecipeOverlays, setShouldDebugRecipeOverlays] =
     useState(false);
 
+  useEffect(() => {
+    setHasLoaded?.(true);
+    storeTimezoneCookie();
+  }, []);
+
   const invalidateSwr = useCallback(() => setSwrTimestamp(Date.now()), []);
 
-  const { data, error } = useSWR('getAuth', getAuthAction);
+  const { data: auth, error: authError } = useSWR('getAuth', getAuthAction);
   useEffect(() => {
-    if (!error) {
-      setUserEmail(data?.user?.email ?? undefined);
+    setIsUserSignedInEager(hasAuthEmailCookie());
+    if (!authError) {
+      setUserEmail(auth?.user?.email ?? undefined);
     }
-  }, [data, error]);
+  }, [auth, authError]);
   const isUserSignedIn = Boolean(userEmail);
+
+  const { data: adminData, mutate: refreshAdminData } = useSWR(
+    isUserSignedIn ? 'getAdminData' : null,
+    getAdminDataAction, {
+      refreshInterval: 1000 * 60,
+    },
+  );
+  const updateAdminData = useCallback(
+    (updatedData: Partial<AdminData>) => {
+      if (adminData) {
+        refreshAdminData({
+          ...adminData,
+          ...updatedData,
+        });
+      }
+    }, [adminData, refreshAdminData]);
+
   useEffect(() => {
-    if (isUserSignedIn) {
-      const timeout = setTimeout(() =>{
-        getPhotosHiddenMetaCachedAction()
-          .then(({ count }) => setHiddenPhotosCount(count));
-        getShouldShowInsightsIndicatorAction()
-          .then(setInsightIndicatorStatus);
-      }, 100);
-      return () => clearTimeout(timeout);
-    } else {
-      setHiddenPhotosCount(0);
+    if (userEmail) {
+      storeAuthEmailCookie(userEmail);
     }
-  }, [isUserSignedIn]);
+  }, [userEmail, refreshAdminData, adminData]);
 
   const registerAdminUpdate = useCallback(() =>
     setAdminUpdateTimes(updates => [...updates, new Date()])
   , []);
 
-  useEffect(() => {
-    setHasLoaded?.(true);
-    storeTimezoneCookie();
+  const clearAuthStateAndRedirect = useCallback(() => {
+    setUserEmail(undefined);
+    setIsUserSignedInEager(false);
+    clearAuthEmailCookie();
+    if (isPathAdmin(pathname)) { router.push(PATH_SIGN_IN); }
+  }, [router, pathname]);
+
+  const startUpload = useCallback((onStart?: () => void) => {
+    if (uploadInputRef.current) {
+      uploadInputRef.current.value = '';
+      uploadInputRef.current.click();
+      uploadInputRef.current.oninput = onStart ?? null;
+      uploadInputRef.current.oncancel = onStart ?? null;
+    }
+  }, []);
+  const setUploadState = useCallback((uploadState: Partial<UploadState>) => {
+    _setUploadState(prev => ({ ...prev, ...uploadState }));
+  }, []);
+  const resetUploadState = useCallback(() => {
+    _setUploadState(INITIAL_UPLOAD_STATE);
   }, []);
 
   return (
@@ -114,24 +159,33 @@ export default function AppStateProvider({
         clearNextPhotoAnimation: () => setNextPhotoAnimation?.(undefined),
         shouldRespondToKeyboardCommands,
         setShouldRespondToKeyboardCommands,
+        // UPLOAD
+        uploadInputRef,
+        startUpload,
+        uploadState,
+        setUploadState,
+        resetUploadState,
         // MODAL
         isCommandKOpen,
         setIsCommandKOpen,
         shareModalProps,
         setShareModalProps,
-        // ADMIN
+        // AUTH
         userEmail,
         setUserEmail,
         isUserSignedIn,
+        isUserSignedInEager,
+        clearAuthStateAndRedirect,
+        // ADMIN
         adminUpdateTimes,
         registerAdminUpdate,
-        hiddenPhotosCount,
+        refreshAdminData,
+        updateAdminData,
+        ...adminData,
         selectedPhotoIds,
         setSelectedPhotoIds,
         isPerformingSelectEdit,
         setIsPerformingSelectEdit,
-        insightIndicatorStatus,
-        setInsightIndicatorStatus,
         // DEBUG
         isGridHighDensity,
         setIsGridHighDensity,
