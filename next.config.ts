@@ -46,7 +46,6 @@ const nextConfig: NextConfig = {
     remotePatterns,
     minimumCacheTTL: 31536000,
   },
-  basePath: '/photos',
 };
 
 module.exports = process.env.ANALYZE === 'true'
