@@ -1,6 +1,6 @@
-import { removeUrlProtocol } from '@/utility/url';
 import type { NextConfig } from 'next';
 import { RemotePattern } from 'next/dist/shared/lib/image-config';
+import { removeUrlProtocol } from '@/utility/url';
 
 const VERCEL_BLOB_STORE_ID = process.env.BLOB_READ_WRITE_TOKEN?.match(
   /^vercel_blob_rw_([a-z0-9]+)_[a-z0-9]+$/i,
@@ -15,18 +15,18 @@ const HOSTNAME_CLOUDFLARE_R2 =
 
 const HOSTNAME_AWS_S3 =
   process.env.NEXT_PUBLIC_AWS_S3_BUCKET &&
-  process.env.NEXT_PUBLIC_AWS_S3_REGION
+    process.env.NEXT_PUBLIC_AWS_S3_REGION
     // eslint-disable-next-line max-len
     ? `${process.env.NEXT_PUBLIC_AWS_S3_BUCKET}.s3.${process.env.NEXT_PUBLIC_AWS_S3_REGION}.amazonaws.com`
     : undefined;
 
 const generateRemotePattern = (hostname: string) =>
-  ({
-    protocol: 'https',
-    hostname: removeUrlProtocol(hostname)!,
-    port: '',
-    pathname: '/**',
-  } as const);
+({
+  protocol: 'https',
+  hostname: removeUrlProtocol(hostname)!,
+  port: '',
+  pathname: '/**',
+} as const);
 
 const remotePatterns: RemotePattern[] = [];
 
