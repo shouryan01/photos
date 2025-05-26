@@ -19,11 +19,19 @@ export const makeUrlAbsolute = (url?: string) => url !== undefined
   : undefined;
 
 export const removeParamsFromUrl = (urlString = '', params: string[]) => {
-  const url = new URL(urlString);
-  for (const param of params) {
-    url.searchParams.delete(param);
+  console.log('Attempting to process URL:', urlString);
+  if (!urlString) return '';
+
+  try {
+    const url = new URL(urlString);
+    for (const param of params) {
+      url.searchParams.delete(param);
+    }
+    return url.toString();
+  } catch (error) {
+    console.error('Invalid URL:', urlString, error);
+    return urlString;
   }
-  return url.toString();
 };
 
 export const downloadFileFromBrowser = async (
