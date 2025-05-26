@@ -20,6 +20,7 @@ import useKeydownHandler from '@/utility/useKeydownHandler';
 import { usePathname } from 'next/navigation';
 import { KEY_COMMANDS } from '@/photo/key-commands';
 import { useAppText } from '@/i18n/state/client';
+import ThemeSwitcher from './ThemeSwitcher';
 
 export type SwitcherSelection = 'feed' | 'grid' | 'admin';
 
@@ -111,6 +112,7 @@ export default function AppViewSwitcher({
               },
             }}
           />}
+        <ThemeSwitcher />
         {isUserSignedIn &&
           <SwitcherItem
             icon={<AdminAppMenu

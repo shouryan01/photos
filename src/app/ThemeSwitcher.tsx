@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
-import Switcher from '@/components/Switcher';
-import SwitcherItem from '@/components/SwitcherItem';
-import { BiDesktop, BiMoon, BiSun } from 'react-icons/bi';
+import { BiMoon, BiSun } from 'react-icons/bi';
 import { useAppText } from '@/i18n/state/client';
+import SwitcherItem from '@/components/SwitcherItem';
 
-export default function ThemeSwitcher () {
+export default function ThemeSwitcher() {
   const appText = useAppText();
 
   const [mounted, setMounted] = useState(false);
@@ -22,26 +21,13 @@ export default function ThemeSwitcher () {
     return null;
   }
 
+  const isDark = theme === 'dark';
+
   return (
-    <Switcher>
-      <SwitcherItem
-        icon={<BiDesktop size={16} />}
-        onClick={() => setTheme('system')}
-        active={theme === 'system'}
-        tooltip={{ content: appText.theme.system }}
-      />
-      <SwitcherItem
-        icon={<BiSun size={18} />}
-        onClick={() => setTheme('light')}
-        active={theme === 'light'}
-        tooltip={{ content: appText.theme.light }}
-      />
-      <SwitcherItem
-        icon={<BiMoon size={16} />}
-        onClick={() => setTheme('dark')}
-        active={theme === 'dark'}
-        tooltip={{ content: appText.theme.dark }}
-      />
-    </Switcher>
+    <SwitcherItem
+      icon={isDark ? <BiSun size={18} /> : <BiMoon size={16} />}
+      onClick={() => setTheme(isDark ? 'light' : 'dark')}
+      tooltip={{ content: isDark ? appText.theme.light : appText.theme.dark }}
+    />
   );
 }
