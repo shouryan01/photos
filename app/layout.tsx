@@ -111,7 +111,7 @@ export default function RootLayout({
                       {children}
                     </div>
                   </main>
-                  <Footer />
+                  {/* <Footer /> */}
                 </div>
                 <CommandK />
               </SwrConfigClient>
