@@ -79,7 +79,7 @@ export default function RootLayout({
     >
       <body className={clsx(
         // Center on large screens
-        '3xl:flex flex-col items-center',
+        'flex flex-col items-center',
       )}>
         <AppStateProvider>
           <AppTextProvider>
