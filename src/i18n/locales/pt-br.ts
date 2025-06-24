@@ -38,6 +38,7 @@ const TEXT: I18NDeepPartial = {
     grid: 'Grade',
     admin: 'Menu de administrador',
     search: 'Pesquisar',
+    tags: 'Tags',
     prev: 'Anterior',
     prevShort: 'Ant',
     next: 'Próximo',

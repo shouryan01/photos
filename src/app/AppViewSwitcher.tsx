@@ -21,6 +21,7 @@ import { usePathname } from 'next/navigation';
 import { KEY_COMMANDS } from '@/photo/key-commands';
 import { useAppText } from '@/i18n/state/client';
 import ThemeSwitcher from './ThemeSwitcher';
+import TagsSwitcher from './TagsSwitcher';
 
 export type SwitcherSelection = 'feed' | 'grid' | 'admin';
 
@@ -32,7 +33,7 @@ export default function AppViewSwitcher({
   className?: string
 }) {
   const pathname = usePathname();
-  
+
   const appText = useAppText();
 
   const {
@@ -97,8 +98,7 @@ export default function AppViewSwitcher({
       )}
     >
       <Switcher>
-        {GRID_HOMEPAGE_ENABLED ? renderItemGrid : renderItemFeed}
-        {GRID_HOMEPAGE_ENABLED ? renderItemFeed : renderItemGrid}
+        {currentSelection === 'grid' ? renderItemFeed : renderItemGrid}
         {/* Show spinner if admin is suspected to be logged in */}
         {(isUserSignedInEager && !isUserSignedIn) &&
           <SwitcherItem
@@ -112,7 +112,17 @@ export default function AppViewSwitcher({
               },
             }}
           />}
+        <TagsSwitcher />
         <ThemeSwitcher />
+        <SwitcherItem
+          icon={<IconSearch />}
+          onClick={() => setIsCommandKOpen?.(true)}
+          tooltip={{...SHOW_KEYBOARD_SHORTCUT_TOOLTIPS && {
+            content: appText.nav.search,
+            keyCommandModifier: KEY_COMMANDS.search[0],
+            keyCommand: KEY_COMMANDS.search[1],
+          }}}
+        />
         {isUserSignedIn &&
           <SwitcherItem
             icon={<AdminAppMenu
@@ -128,7 +138,7 @@ export default function AppViewSwitcher({
             noPadding
           />}
       </Switcher>
-      <Switcher type="borderless">
+      {/* <Switcher type="borderless">
         <SwitcherItem
           icon={<IconSearch includeTitle={false} />}
           onClick={() => setIsCommandKOpen?.(true)}
@@ -138,7 +148,7 @@ export default function AppViewSwitcher({
             keyCommand: KEY_COMMANDS.search[1],
           }}}
         />
-      </Switcher>
+      </Switcher> */}
     </div>
   );
 }

@@ -38,6 +38,7 @@ const TEXT: I18NDeepPartial = {
     grid: 'Grid',
     admin: 'Admin',
     search: 'Cari',
+    tags: 'Tag',
     prev: 'Sebelumnya',
     prevShort: 'Sblm',
     next: 'Berikutnya',

@@ -36,6 +36,7 @@ const TEXT = {
     grid: '网格',
     admin: '管理',
     search: '搜索',
+    tags: '标签',
     prev: '上一页',
     prevShort: '上一页',
     next: '下一页',
@@ -59,7 +60,7 @@ const TEXT = {
     system: '系统',
     light: '浅色模式',
     dark: '深色模式',
-  }, 
+  },
   auth: {
     signIn: '登录',
     signOut: '退出',

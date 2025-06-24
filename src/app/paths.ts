@@ -7,13 +7,14 @@ import { TAG_HIDDEN } from '@/tag';
 import { Lens } from '@/lens';
 
 // Core paths
-export const PATH_ROOT                  = '/';
-export const PATH_GRID                  = '/grid';
-export const PATH_FEED                  = '/feed';
-export const PATH_ADMIN                 = '/admin';
-export const PATH_API                   = '/api';
-export const PATH_SIGN_IN               = '/sign-in';
-export const PATH_OG                    = '/og';
+export const PATH_ROOT = '/';
+export const PATH_GRID = '/grid';
+export const PATH_FEED = '/feed';
+export const PATH_ADMIN = '/admin';
+export const PATH_TAGS = '/tags';
+export const PATH_API = '/api';
+export const PATH_SIGN_IN = '/sign-in';
+export const PATH_OG = '/og';
 
 export const PATH_GRID_INFERRED = GRID_HOMEPAGE_ENABLED
   ? PATH_ROOT
@@ -24,37 +25,37 @@ export const PATH_FEED_INFERRED = GRID_HOMEPAGE_ENABLED
   : PATH_ROOT;
 
 // Path prefixes
-export const PREFIX_PHOTO               = '/p';
-export const PREFIX_CAMERA              = '/shot-on';
-export const PREFIX_LENS                = '/lens';
-export const PREFIX_TAG                 = '/tag';
-export const PREFIX_RECIPE              = '/recipe';
-export const PREFIX_FILM                = '/film';
-export const PREFIX_FOCAL_LENGTH        = '/focal';
+export const PREFIX_PHOTO = '/p';
+export const PREFIX_CAMERA = '/shot-on';
+export const PREFIX_LENS = '/lens';
+export const PREFIX_TAG = '/tag';
+export const PREFIX_RECIPE = '/recipe';
+export const PREFIX_FILM = '/film';
+export const PREFIX_FOCAL_LENGTH = '/focal';
 
 // Dynamic paths
-const PATH_PHOTO_DYNAMIC                = `${PREFIX_PHOTO}/[photoId]`;
-const PATH_CAMERA_DYNAMIC               = `${PREFIX_CAMERA}/[make]/[model]`;
-const PATH_LENS_DYNAMIC                 = `${PREFIX_LENS}/[make]/[model]`;
-const PATH_TAG_DYNAMIC                  = `${PREFIX_TAG}/[tag]`;
-const PATH_FILM_DYNAMIC                 = `${PREFIX_FILM}/[film]`;
-const PATH_FOCAL_LENGTH_DYNAMIC         = `${PREFIX_FOCAL_LENGTH}/[focal]`;
-const PATH_RECIPE_DYNAMIC               = `${PREFIX_RECIPE}/[recipe]`;
+const PATH_PHOTO_DYNAMIC = `${PREFIX_PHOTO}/[photoId]`;
+const PATH_CAMERA_DYNAMIC = `${PREFIX_CAMERA}/[make]/[model]`;
+const PATH_LENS_DYNAMIC = `${PREFIX_LENS}/[make]/[model]`;
+const PATH_TAG_DYNAMIC = `${PREFIX_TAG}/[tag]`;
+const PATH_FILM_DYNAMIC = `${PREFIX_FILM}/[film]`;
+const PATH_FOCAL_LENGTH_DYNAMIC = `${PREFIX_FOCAL_LENGTH}/[focal]`;
+const PATH_RECIPE_DYNAMIC = `${PREFIX_RECIPE}/[recipe]`;
 
 // Admin paths
-export const PATH_ADMIN_PHOTOS          = `${PATH_ADMIN}/photos`;
-export const PATH_ADMIN_PHOTOS_UPDATES  = `${PATH_ADMIN_PHOTOS}/updates`;
-export const PATH_ADMIN_UPLOADS         = `${PATH_ADMIN}/uploads`;
-export const PATH_ADMIN_TAGS            = `${PATH_ADMIN}/tags`;
-export const PATH_ADMIN_RECIPES         = `${PATH_ADMIN}/recipes`;
-export const PATH_ADMIN_CONFIGURATION   = `${PATH_ADMIN}/configuration`;
-export const PATH_ADMIN_INSIGHTS        = `${PATH_ADMIN}/insights`;
-export const PATH_ADMIN_BASELINE        = `${PATH_ADMIN}/baseline`;
-export const PATH_ADMIN_COMPONENTS      = `${PATH_ADMIN}/components`;
+export const PATH_ADMIN_PHOTOS = `${PATH_ADMIN}/photos`;
+export const PATH_ADMIN_PHOTOS_UPDATES = `${PATH_ADMIN_PHOTOS}/updates`;
+export const PATH_ADMIN_UPLOADS = `${PATH_ADMIN}/uploads`;
+export const PATH_ADMIN_TAGS = `${PATH_ADMIN}/tags`;
+export const PATH_ADMIN_RECIPES = `${PATH_ADMIN}/recipes`;
+export const PATH_ADMIN_CONFIGURATION = `${PATH_ADMIN}/configuration`;
+export const PATH_ADMIN_INSIGHTS = `${PATH_ADMIN}/insights`;
+export const PATH_ADMIN_BASELINE = `${PATH_ADMIN}/baseline`;
+export const PATH_ADMIN_COMPONENTS = `${PATH_ADMIN}/components`;
 
 // Debug paths
-export const PATH_OG_ALL                = `${PATH_OG}/all`;
-export const PATH_OG_SAMPLE             = `${PATH_OG}/sample`;
+export const PATH_OG_ALL = `${PATH_OG}/all`;
+export const PATH_OG_SAMPLE = `${PATH_OG}/sample`;
 
 // API paths
 export const PATH_API_STORAGE = `${PATH_API}/storage`;
@@ -62,7 +63,7 @@ export const PATH_API_VERCEL_BLOB_UPLOAD = `${PATH_API_STORAGE}/vercel-blob`;
 export const PATH_API_PRESIGNED_URL = `${PATH_API_STORAGE}/presigned-url`;
 
 // Modifiers
-const EDIT  = 'edit';
+const EDIT = 'edit';
 
 // Special characters
 export const MISSING_FIELD = '-';
@@ -84,6 +85,7 @@ export const PATHS_TO_CACHE = [
   PATH_ROOT,
   PATH_GRID,
   PATH_FEED,
+  PATH_TAGS,
   PATH_OG,
   PATH_PHOTO_DYNAMIC,
   PATH_CAMERA_DYNAMIC,
@@ -95,7 +97,7 @@ export const PATHS_TO_CACHE = [
   ...PATHS_ADMIN,
 ];
 
-type PhotoPathParams  = { photo: PhotoOrPhotoId } & PhotoSetCategory & {
+type PhotoPathParams = { photo: PhotoOrPhotoId } & PhotoSetCategory & {
   showRecipe?: boolean
 };
 
@@ -179,10 +181,10 @@ export const absolutePathForPhoto = (
 export const absolutePathForTag = (tag: string, share?: boolean) =>
   `${getBaseUrl(share)}${pathForTag(tag)}`;
 
-export const absolutePathForCamera= (camera: Camera, share?: boolean) =>
+export const absolutePathForCamera = (camera: Camera, share?: boolean) =>
   `${getBaseUrl(share)}${pathForCamera(camera)}`;
 
-export const absolutePathForLens= (lens: Lens, share?: boolean) =>
+export const absolutePathForLens = (lens: Lens, share?: boolean) =>
   `${getBaseUrl(share)}${pathForLens(lens)}`;
 
 export const absolutePathForFilm = (film: string, share?: boolean) =>
@@ -200,10 +202,10 @@ export const absolutePathForPhotoImage = (photo: PhotoOrPhotoId) =>
 export const absolutePathForTagImage = (tag: string) =>
   `${absolutePathForTag(tag)}/image`;
 
-export const absolutePathForCameraImage= (camera: Camera) =>
+export const absolutePathForCameraImage = (camera: Camera) =>
   `${absolutePathForCamera(camera)}/image`;
 
-export const absolutePathForLensImage= (lens: Lens) =>
+export const absolutePathForLensImage = (lens: Lens) =>
   `${absolutePathForLens(lens)}/image`;
 
 export const absolutePathForFilmImage = (film: string) =>
@@ -265,7 +267,7 @@ export const isPathFeed = (pathname?: string) =>
   checkPathPrefix(pathname, PATH_FEED);
 
 export const isPathTopLevel = (pathname?: string) =>
-  isPathRoot(pathname)||
+  isPathRoot(pathname) ||
   isPathGrid(pathname) ||
   isPathFeed(pathname);
 

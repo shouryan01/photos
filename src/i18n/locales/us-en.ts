@@ -36,6 +36,7 @@ const TEXT = {
     grid: 'Grid',
     admin: 'Admin',
     search: 'Search',
+    tags: 'Tags',
     prev: 'Previous',
     prevShort: 'Prev',
     next: 'Next',
@@ -59,7 +60,7 @@ const TEXT = {
     system: 'System',
     light: 'Light Mode',
     dark: 'Dark Mode',
-  }, 
+  },
   auth: {
     signIn: 'Sign In',
     signOut: 'Sign Out',
