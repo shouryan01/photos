@@ -1,4 +1,4 @@
-import { parseISO, parse, format, isDate } from 'date-fns';
+import { parseISO, parse, format, isValid } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 import { Timezone } from './timezone';
 import { setDefaultDateFnLocale } from '@/i18n';
@@ -20,10 +20,12 @@ const DATE_FORMAT_LONG_PLACEHOLDER       = '00 000 0000 00:0000';
 const DATE_FORMAT_RSS                    = 'EEE, dd LLL yyyy HH:mm:ss xx';
 const DATE_FORMAT_RSS_PLACEHOLDER        = '000, 00 000 0000 00:00:00 00';
 
-const DATE_FORMAT_POSTGRES               = 'yyyy-MM-dd HH:mm:ss';
+export const DATE_FORMAT_POSTGRES               = 'yyyy-MM-dd HH:mm:ss';
 
 export const VALIDATION_EXAMPLE_POSTGRES        = '2025-01-03T21:00:44.000Z';
 export const VALIDATION_EXAMPLE_POSTGRES_NAIVE  = '2025-01-03 16:00:44';
+
+export const DAY_NAMES = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 type AmbiguousTimestamp = number | string;
 
@@ -101,11 +103,8 @@ const dateFromTimestamp = (timestamp?: AmbiguousTimestamp): Date => {
       ? /.+Z/i.test(timestamp)
         ? new Date(timestamp)
         : new Date(`${timestamp}Z`)
-      // Check for date last to avoid destabilizing status quo
-      : isDate(timestamp)
-        ? timestamp
-        : undefined;
-  return date && !isNaN(date.getTime()) ? date : new Date();
+      : timestamp;
+  return isValid(date) ? date as Date : new Date();
 };
 
 const createNaiveDateWithOffset = (
@@ -161,3 +160,52 @@ export const validationMessageNaivePostgresDateString = (date = '') =>
   validateNaivePostgresDateString(date)
     ? undefined
     : `Invalid format (${VALIDATION_EXAMPLE_POSTGRES_NAIVE})`;
+
+// Keep "taken at" (UTC) and "taken at (naive)" (local) in sync,
+// since sorting uses the former and display uses the latter
+
+const MAX_TIMEZONE_OFFSET_MS = 14 * 60 * 60 * 1000;
+const TIMEZONE_OFFSET_STEP_MS = 15 * 60 * 1000;
+
+const naivePostgresStringToUtcMs = (naive: string) =>
+  new Date(`${naive.replace(' ', 'T')}Z`).getTime();
+
+const utcMsToNaivePostgresString = (ms: number) =>
+  convertTimestampToNaivePostgresString(new Date(ms).toISOString());
+
+// Returns local offset (naive - utc) in ms, if pair is a plausible timezone
+export const getTakenAtOffsetMs = (
+  takenAt = '',
+  takenAtNaive = '',
+): number | undefined => {
+  if (
+    !validatePostgresDateString(takenAt) ||
+    !validateNaivePostgresDateString(takenAtNaive)
+  ) {
+    return undefined;
+  }
+  // Ignore sub-second precision
+  const utcMs = Math.floor(new Date(takenAt).getTime() / 1000) * 1000;
+  const offsetMs = naivePostgresStringToUtcMs(takenAtNaive) - utcMs;
+  return (
+    Math.abs(offsetMs) <= MAX_TIMEZONE_OFFSET_MS &&
+    offsetMs % TIMEZONE_OFFSET_STEP_MS === 0
+  )
+    ? offsetMs
+    : undefined;
+};
+
+export const convertTakenAtToNaive = (takenAt: string, offsetMs: number) =>
+  utcMsToNaivePostgresString(new Date(takenAt).getTime() + offsetMs);
+
+export const convertTakenAtNaiveToUtc = (
+  takenAtNaive: string,
+  offsetMs: number,
+) =>
+  new Date(naivePostgresStringToUtcMs(takenAtNaive) - offsetMs)
+    .toISOString();
+
+// Short local timezone label, e.g. "EST", "PST", "UTC+5"
+export const getLocalTimeZoneLabel = () =>
+  new Date().toLocaleTimeString('en-US', { timeZoneName: 'short' })
+    .split(' ').at(-1);

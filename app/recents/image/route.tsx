@@ -1,7 +1,7 @@
 import { getPhotosCached } from '@/photo/cache';
 import {
   IMAGE_OG_DIMENSION_SMALL,
-  MAX_PHOTOS_TO_SHOW_PER_CATEGORY,
+  PHOTO_PREVIEW_QUERY_OPTIONS,
 } from '@/image-response';
 import RecentsImageResponse from
   '@/recents/RecentsImageResponse';
@@ -9,7 +9,7 @@ import { getIBMPlexMono } from '@/app/font';
 import { getImageResponseCacheControlHeaders } from '@/image-response/cache';
 import { getAppText } from '@/i18n/state/server';
 import { SHOW_RECENTS } from '@/app/config';
-import { safePhotoImageResponse } from '@/platforms/safe-photo-image-response';
+import { ImageResponse } from 'next/og';
 
 export const dynamic = 'force-static';
 
@@ -21,7 +21,7 @@ export async function GET() {
   ] = await Promise.all([
     SHOW_RECENTS
       ? getPhotosCached({
-        limit: MAX_PHOTOS_TO_SHOW_PER_CATEGORY,
+        ...PHOTO_PREVIEW_QUERY_OPTIONS,
         recent: true,
       }).catch(() => [])
       : [],
@@ -35,17 +35,14 @@ export async function GET() {
 
   const { width, height } = IMAGE_OG_DIMENSION_SMALL;
 
-  return safePhotoImageResponse(
-    photos,
-    isNextImageReady => (
-      <RecentsImageResponse {...{
-        title,
-        photos: isNextImageReady ? photos : [],
-        width,
-        height,
-        fontFamily,
-      }}/>
-    ),
+  return new ImageResponse(
+    <RecentsImageResponse {...{
+      title,
+      photos,
+      width,
+      height,
+      fontFamily,
+    }}/>,
     { width, height, fonts, headers },
   );
 }

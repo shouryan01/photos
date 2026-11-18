@@ -5,6 +5,9 @@
 /.pnp
 .pnp.js
 
+#db
+*.sql
+
 # testing
 /coverage
 
@@ -18,6 +21,7 @@
 # misc
 .DS_Store
 *.pem
+index.db
 
 # debug
 npm-debug.log*
@@ -26,6 +30,7 @@ yarn-error.log*
 
 # local env files
 .env*.local
+.env*
 
 # vercel
 .vercel
@@ -35,4 +40,6 @@ yarn-error.log*
 next-env.d.ts
 
 # temp files
+/backup
+/app/restore
 temp.jpg

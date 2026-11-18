@@ -1,4 +1,4 @@
-import AdminChildPage from '@/components/AdminChildPage';
+import AdminPage from '@/admin/AdminPage';
 import { redirect } from 'next/navigation';
 import { getPhotosCached, getPhotosMetaCached } from '@/photo/cache';
 import AdminTagForm from '@/admin/AdminTagForm';
@@ -23,14 +23,14 @@ export default async function TagPageEdit({
     { count },
     photos,
   ] = await Promise.all([
-    getPhotosMetaCached({ tag }),
-    getPhotosCached({ tag, limit: MAX_PHOTO_TO_SHOW }),
+    getPhotosMetaCached({ tag, hidden: 'include' }),
+    getPhotosCached({ tag, limit: MAX_PHOTO_TO_SHOW, hidden: 'include' }),
   ]);
 
   if (count === 0) { redirect(PATH_ADMIN); }
 
   return (
-    <AdminChildPage
+    <AdminPage
       backPath={PATH_ADMIN_TAGS}
       backLabel="Tags"
       breadcrumb={<AdminTagBadge {...{ tag, count, hideBadge: true }} />}
@@ -42,6 +42,6 @@ export default async function TagPageEdit({
           moreLink={pathForTag(tag)}
         />
       </AdminTagForm>
-    </AdminChildPage>
+    </AdminPage>
   );
 };

@@ -9,7 +9,6 @@ import {
   shouldShowFilmDataForPhoto,
   shouldShowLensDataForPhoto,
   shouldShowRecipeDataForPhoto,
-  titleForPhoto,
 } from '.';
 import AppGrid from '@/components/AppGrid';
 import ImageLarge from '@/components/image/ImageLarge';
@@ -20,7 +19,7 @@ import PhotoTags from '@/tag/PhotoTags';
 import ShareButton from '@/share/ShareButton';
 import DownloadButton from '@/components/DownloadButton';
 import PhotoCamera from '../camera/PhotoCamera';
-import { cameraFromPhoto } from '@/camera';
+import { Camera, cameraFromPhoto } from '@/camera';
 import PhotoFilm from '@/film/PhotoFilm';
 import { sortTagsArray } from '@/tag';
 import DivDebugBaselineGrid from '@/components/DivDebugBaselineGrid';
@@ -31,6 +30,11 @@ import {
   SHOW_TAKEN_AT_TIME,
   MATTE_COLOR,
   MATTE_COLOR_DARK,
+  ALWAYS_SHOW_EXPOSURE_COMP,
+  UPPERCASE_TITLES,
+  PHOTO_TITLE_SERIF,
+  PHOTO_COLOR_BAR,
+  GEO_PRIVACY_ENABLED,
 } from '@/app/config';
 import AdminPhotoMenu from '@/admin/AdminPhotoMenu';
 import { RevalidatePhoto } from './InfinitePhotoScroll';
@@ -41,16 +45,27 @@ import { useAppState } from '@/app/AppState';
 import { LuExpand } from 'react-icons/lu';
 import LoaderButton from '@/components/primitives/LoaderButton';
 import Tooltip from '@/components/Tooltip';
-import ZoomControls, { ZoomControlsRef } from '@/components/image/ZoomControls';
+import ZoomControls, { ZoomControlsRef }
+  from '@/components/image/zoom/ZoomControls';
 import { AnimatePresence } from 'framer-motion';
 import useRecipeOverlay from '../recipe/useRecipeOverlay';
 import PhotoRecipeOverlay from '@/recipe/PhotoRecipeOverlay';
 import PhotoRecipe from '@/recipe/PhotoRecipe';
 import PhotoLens from '@/lens/PhotoLens';
-import { lensFromPhoto } from '@/lens';
+import { Lens, lensFromPhoto } from '@/lens';
 import MaskedScroll from '@/components/MaskedScroll';
 import { useAppText } from '@/i18n/state/client';
 import { Album } from '@/album';
+import AdminPhotoStorageCheck from '@/admin/storage/AdminPhotoStorageCheck';
+import { useEditTitlesState } from '@/admin/edit-titles/EditTitlesState';
+import { DATA_KEY_PHOTO_LARGE } from '@/admin/edit-titles/EditTitlesProvider';
+import FieldsetWithStatus from '@/components/FieldsetWithStatus';
+import PlaceEntity from '@/place/PlaceEntity';
+import PhotoOmRecipe from '@/platforms/om-system/PhotoOmRecipe';
+import OmRecipeOverlay from '@/platforms/om-system/OmRecipeOverlay';
+import useMediaQuery from '@/utility/useMediaQuery';
+import { getFujifilmRecipe, getOmRecipe } from '@/recipe/serialization';
+import PhotoColorBar from './color/PhotoColorBar';
 
 export default function PhotoLarge({
   photo,
@@ -60,6 +75,7 @@ export default function PhotoLarge({
   priority,
   prefetch = SHOULD_PREFETCH_ALL_LINKS,
   prefetchRelatedLinks = SHOULD_PREFETCH_ALL_LINKS,
+  query,
   recent,
   year,
   revalidatePhoto,
@@ -72,6 +88,7 @@ export default function PhotoLarge({
   showZoomControls: _showZoomControls = true,
   shouldZoomOnFKeydown = true,
   shouldShare = true,
+  shouldShareQuery,
   shouldShareRecents,
   shouldShareYear,
   shouldShareCamera,
@@ -84,6 +101,7 @@ export default function PhotoLarge({
   includeFavoriteInAdminMenu,
   onVisible,
   showAdminKeyCommands,
+  showStorageCheck,
 }: {
   photo: Photo
   className?: string
@@ -92,8 +110,14 @@ export default function PhotoLarge({
   priority?: boolean
   prefetch?: boolean
   prefetchRelatedLinks?: boolean
+  query?: string
   recent?: boolean
   year?: string
+  camera?: Camera
+  lens?: Lens
+  recipe?: string
+  film?: string
+  focal?: number
   revalidatePhoto?: RevalidatePhoto
   showTitle?: boolean
   showTitleAsH1?: boolean
@@ -104,6 +128,7 @@ export default function PhotoLarge({
   showZoomControls?: boolean
   shouldZoomOnFKeydown?: boolean
   shouldShare?: boolean
+  shouldShareQuery?: boolean
   shouldShareRecents?: boolean
   shouldShareYear?: boolean
   shouldShareCamera?: boolean
@@ -116,6 +141,7 @@ export default function PhotoLarge({
   includeFavoriteInAdminMenu?: boolean
   onVisible?: () => void
   showAdminKeyCommands?: boolean
+  showStorageCheck?: boolean
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const refZoomControls = useRef<ZoomControlsRef>(null);
@@ -129,7 +155,23 @@ export default function PhotoLarge({
     isUserSignedIn,
   } = useAppState();
 
+  const {
+    isEditingTitles,
+    getPhotoEdit,
+    setPhotoEdit,
+    isPerformingUpdate,
+  } = useEditTitlesState();
+
   const appText = useAppText();
+
+  const photoEditOriginal = useMemo(() => ({
+    title: photo.title ?? '',
+    caption: photo.caption ?? '',
+  }), [photo.title, photo.caption]);
+
+  const photoEdit = isEditingTitles
+    ? getPhotoEdit?.(photo.id, photoEditOriginal) ?? photoEditOriginal
+    : photoEditOriginal;
 
   const showZoomControls = _showZoomControls && areZoomControlsShown;
   const selectZoomImageElement = useCallback(
@@ -152,6 +194,12 @@ export default function PhotoLarge({
     ref: refRecipe,
     refTriggers,
   });
+  const isDesktop = useMediaQuery('(min-width: 768px)');
+  const omRecipe = getOmRecipe(photo.recipeData);
+  const fujifilmRecipe = getFujifilmRecipe(photo.recipeData);
+  const showInlineRecipeOverlay =
+    (isShowingRecipeOverlay || shouldDebugRecipeOverlays) &&
+    (!omRecipe || isDesktop);
 
   const tags = sortTagsArray(photo.tags, primaryTag);
 
@@ -166,6 +214,9 @@ export default function PhotoLarge({
   const showTagsContent = tags.length > 0;
   const showRecipeContent = showRecipe && shouldShowRecipeDataForPhoto(photo);
   const showFilmContent = showFilm && shouldShowFilmDataForPhoto(photo);
+  const showPlaceContent =
+    Boolean(photo.location) &&
+    !GEO_PRIVACY_ENABLED;
 
   useVisibility({ ref, onVisible });
 
@@ -174,6 +225,7 @@ export default function PhotoLarge({
     Boolean(photo.title);
 
   const hasTitleContent =
+    isEditingTitles ||
     hasTitle ||
     Boolean(photo.caption);
 
@@ -183,6 +235,7 @@ export default function PhotoLarge({
     showTagsContent ||
     showRecipeContent ||
     showFilmContent ||
+    showPlaceContent ||
     showExifContent;
 
   const hasNonDateContent =
@@ -192,7 +245,17 @@ export default function PhotoLarge({
   const renderPhotoLink =
     <PhotoLink
       photo={photo}
-      className="font-bold uppercase grow"
+      className={clsx(
+        PHOTO_TITLE_SERIF
+          ? clsx(
+            'font-serif',
+            'text-[1.25rem] sm:text-[1.5rem] leading-tight',
+            // Keep serif/sans text in phase
+            'inline-flex mb-[12.75px] sm:mb-[8px] grow',
+          )
+          : 'font-bold grow',
+        UPPERCASE_TITLES && 'uppercase',
+      )}
       prefetch={prefetch}
     />;
 
@@ -227,7 +290,7 @@ export default function PhotoLarge({
           aspectRatio={photo.aspectRatio}
           blurDataURL={photo.blurData}
           blurCompatibilityMode={doesPhotoNeedBlurCompatibility(photo)}
-          priority={priority}
+          loading={priority ? 'eager' : undefined}
         />
       </ZoomControls>
       <div className={clsx(
@@ -235,22 +298,29 @@ export default function PhotoLarge({
         'flex items-center justify-center',
         // Allow clicks to pass through to zoom controls
         // when not showing recipe overlay
-        !(isShowingRecipeOverlay || shouldDebugRecipeOverlays) &&
+        !showInlineRecipeOverlay &&
           'pointer-events-none',
       )}>
         <AnimatePresence>
-          {(isShowingRecipeOverlay || shouldDebugRecipeOverlays) &&
-            photo.recipeData &&
+          {showInlineRecipeOverlay &&
+            fujifilmRecipe &&
             photo.film &&
               <PhotoRecipeOverlay
                 ref={refRecipe}
-                title={photo.recipeTitle}
-                data={photo.recipeData}
+                title={recipeTitle}
+                data={fujifilmRecipe}
                 film={photo.film}
                 iso={photo.isoFormatted}
                 exposure={photo.exposureCompensationFormatted}
                 onClose={hideRecipeOverlay}
               />}
+          {showInlineRecipeOverlay &&
+            omRecipe && recipeTitle && <OmRecipeOverlay
+            ref={refRecipe}
+            recipe={omRecipe}
+            recipeKey={recipeTitle}
+            onClose={hideRecipeOverlay}
+          />}
         </AnimatePresence>
       </div>
     </div>;
@@ -260,7 +330,6 @@ export default function PhotoLarge({
       photo,
       revalidatePhoto,
       includeFavorite: includeFavoriteInAdminMenu,
-      ariaLabel: `Admin menu for '${titleForPhoto(photo)}' photo`,
       showKeyCommands: showAdminKeyCommands,
     }} />;
 
@@ -280,6 +349,7 @@ export default function PhotoLarge({
     <AppGrid
       containerRef={ref}
       className={className}
+      {...{ [DATA_KEY_PHOTO_LARGE]: true }}
       contentMain={showZoomControls
         ? <div className={largePhotoContainerClassName}>
           {renderLargePhoto}
@@ -294,30 +364,74 @@ export default function PhotoLarge({
       classNameSide="relative"
       sideHiddenOnMobile={false}
       contentSide={
-        <div className="md:absolute inset-0 -mt-1">
+        <div className="3xl:absolute inset-0 -mt-1">
           <MaskedScroll className="sticky top-4 self-start">
             <DivDebugBaselineGrid className={clsx(
-              'grid grid-cols-2 md:grid-cols-1',
+              // 2-col when stacked below photo; 1-col in 3xl+ sidebar
+              'grid grid-cols-2 3xl:grid-cols-1',
               'gap-x-0.5 sm:gap-x-1 gap-y-baseline',
-              'mb-6 md:mb-4',
+              'mb-6 3xl:mb-4',
             )}>
               {/* Meta */}
-              <div className="pr-3 md:pr-0">
-                <div className="float-end hidden md:block">
-                  {renderAdminMenu}
-                </div>
-                {hasTitle && (showTitleAsH1
-                  ? <h1>{renderPhotoLink}</h1>
-                  : renderPhotoLink)}
+              <div className="pr-3 3xl:pr-0">
+                {!isEditingTitles &&
+                  <div className="float-end hidden 3xl:block">
+                    {renderAdminMenu}
+                  </div>}
+                {isEditingTitles
+                  ? <div className={clsx(
+                    'space-y-2 mb-2',
+                    // Keep text large for iOS forms
+                    '3xl:[&_input]:text-sm',
+                  )}>
+                    <FieldsetWithStatus
+                      id={`edit-title-${photo.id}`}
+                      label="Title"
+                      value={photoEdit.title}
+                      onChange={title => setPhotoEdit?.(
+                        photo.id,
+                        { title },
+                        photoEditOriginal,
+                      )}
+                      placeholder="Title"
+                      readOnly={isPerformingUpdate}
+                      className={clsx(
+                        '[&_input]:font-bold',
+                        '[&_input]:outline-2',
+                      )}
+                      hideLabel
+                    />
+                    <FieldsetWithStatus
+                      id={`edit-caption-${photo.id}`}
+                      label="Caption"
+                      value={photoEdit.caption}
+                      onChange={caption => setPhotoEdit?.(
+                        photo.id,
+                        { caption },
+                        photoEditOriginal,
+                      )}
+                      placeholder="Caption"
+                      readOnly={isPerformingUpdate}
+                      className="[&_input]:outline-2"
+                      hideLabel
+                    />
+                  </div>
+                  : hasTitle && (showTitleAsH1
+                    ? <h1>{renderPhotoLink}</h1>
+                    : renderPhotoLink)}
                 <div className="space-y-baseline">
-                  {photo.caption &&
-                    <div className="uppercase">
+                  {!isEditingTitles && photo.caption &&
+                    <div className={clsx(
+                      UPPERCASE_TITLES && 'uppercase',
+                      PHOTO_TITLE_SERIF && 'text-medium',
+                    )}>
                       {photo.caption}
                     </div>}
                   {(
                     showCameraContent ||
                     showLensContent ||
                     showRecipeContent ||
+                    showPlaceContent ||
                     showTagsContent
                   ) &&
                     <div>
@@ -334,9 +448,10 @@ export default function PhotoLarge({
                               lens={lens}
                               contrast="medium"
                               prefetch={prefetchRelatedLinks}
+                              includeFocalLength={false}
                             />}
                         </div>}
-                      {showRecipeContent && recipeTitle &&
+                      {showRecipeContent && !omRecipe && recipeTitle &&
                         <PhotoRecipe
                           ref={refPhotoRecipe}
                           recipe={recipeTitle}
@@ -345,6 +460,16 @@ export default function PhotoLarge({
                           toggleRecipeOverlay={toggleRecipeOverlay}
                           isShowingRecipeOverlay={isShowingRecipeOverlay}
                         />}
+                      {showRecipeContent && omRecipe &&
+                        recipeTitle && <PhotoOmRecipe
+                        ref={refPhotoRecipe}
+                        recipe={omRecipe}
+                        recipeKey={recipeTitle}
+                        contrast="medium"
+                        prefetch={prefetchRelatedLinks}
+                        toggleRecipeOverlay={toggleRecipeOverlay}
+                        isShowingRecipeOverlay={isShowingRecipeOverlay}
+                      />}
                       {showTagsContent &&
                         <PhotoTags
                           tags={tags}
@@ -357,11 +482,12 @@ export default function PhotoLarge({
               {/* EXIF Data */}
               <div className={clsx(
                 'space-y-baseline',
-                !hasTitleContent && !hasMetaContent && 'md:-mt-baseline',
+                !hasTitleContent && !hasMetaContent && '3xl:-mt-baseline',
               )}>
-                <div className="float-end md:hidden">
-                  {renderAdminMenu}
-                </div>
+                {!isEditingTitles &&
+                  <div className="float-end 3xl:hidden">
+                    {renderAdminMenu}
+                  </div>}
                 {showExifContent &&
                   <>
                     <ul className="text-medium">
@@ -375,7 +501,7 @@ export default function PhotoLarge({
                           </Link>}
                         {(
                           photo.focalLengthIn35MmFormatFormatted &&
-                          // eslint-disable-next-line max-len
+                          // eslint-disable-next-line @stylistic/max-len
                           photo.focalLengthIn35MmFormatFormatted !== photo.focalLengthFormatted
                         ) &&
                           <>
@@ -400,53 +526,75 @@ export default function PhotoLarge({
                       <li>{photo.fNumberFormatted}</li>
                       <li>{photo.exposureTimeFormatted}</li>
                       <li>{photo.isoFormatted}</li>
-                      <li>{photo.exposureCompensationFormatted ?? '0ev'}</li>
+                      {photo.exposureCompensationFormatted
+                        ? <li>{photo.exposureCompensationFormatted}</li>
+                        : ALWAYS_SHOW_EXPOSURE_COMP && <li>0ev</li>}
                     </ul>
                     {showFilmContent && photo.film &&
                       <PhotoFilm
                         ref={refPhotoFilm}
                         film={photo.film}
+                        make={photo.make}
                         prefetch={prefetchRelatedLinks}
-                        {...photo.recipeData && !photo.recipeTitle && {
+                        {...fujifilmRecipe && !recipeTitle && {
                           toggleRecipeOverlay,
                           isShowingRecipeOverlay,
                         }}
                       />}
+                    {showPlaceContent && photo.location &&
+                      <div>
+                        <PlaceEntity
+                          place={photo.location}
+                          contrast="low"
+                          className="-translate-x-0.5"
+                        />
+                      </div>}
                   </>}
+              </div>
+              {PHOTO_COLOR_BAR &&
+                <div className="max-3xl:col-start-2">
+                  <PhotoColorBar colorData={photo.colorData} />
+                </div>}
+              <div className={clsx(
+                // Second column on mobile, directly under the color bar
+                'max-3xl:col-start-2',
+                'flex gap-x-3 gap-y-baseline',
+                '3xl:flex-col flex-wrap',
+                '3xl:justify-normal',
+              )}>
+                <PhotoDate
+                  photo={photo}
+                  className={clsx(
+                    'text-medium',
+                    // Prevent collision with admin button
+                    !hasNonDateContent && isUserSignedIn && '3xl:pr-7',
+                  )}
+                  // 'createdAt' is a naive datetime which does not require
+                  // a timezone and will not cause server/client mismatch
+                  timezone={null}
+                  hideTime={!SHOW_TAKEN_AT_TIME}
+                />
                 <div className={clsx(
-                  'flex gap-x-3 gap-y-baseline',
-                  'md:flex-col flex-wrap',
-                  'md:justify-normal',
+                  'flex gap-1 translate-y-[0.5px]',
+                  'translate-x-[-2.5px]',
                 )}>
-                  <PhotoDate
-                    photo={photo}
-                    className={clsx(
-                      'text-medium',
-                      // Prevent collision with admin button
-                      !hasNonDateContent && isUserSignedIn && 'md:pr-7',
-                    )}
-                    // 'createdAt' is a naive datetime which does not require
-                    // a timezone and will not cause server/client mismatch
-                    timezone={null}
-                    hideTime={!SHOW_TAKEN_AT_TIME}
-                  />
-                  <div className={clsx(
-                    'flex gap-1 translate-y-[0.5px]',
-                    'translate-x-[-2.5px]',
-                  )}>
-                    {showZoomControls &&
+                  {showZoomControls &&
                       <LoaderButton
                         tooltip={appText.tooltip.zoom}
+                        aria-label={appText.tooltip.zoom}
                         icon={<LuExpand size={15} />}
                         onClick={() => refZoomControls.current?.open()}
                         styleAs="link"
                         className="text-medium translate-y-[0.25px]"
                         hideFocusOutline
                       />}
-                    {shouldShare &&
+                  {shouldShare &&
                       <ShareButton
                         tooltip={appText.tooltip.sharePhoto}
                         photo={photo}
+                        query={shouldShareQuery
+                          ? query
+                          : undefined}
                         recent={shouldShareRecents
                           ? recent
                           : undefined}
@@ -476,13 +624,14 @@ export default function PhotoLarge({
                           : undefined}
                         prefetch={prefetchRelatedLinks}
                       />}
-                    {ALLOW_PUBLIC_DOWNLOADS && 
+                  {ALLOW_PUBLIC_DOWNLOADS &&
                       <DownloadButton 
-                        className="translate-y-[0.5px] md:translate-y-0"
+                        className="translate-y-[0.5px] 3xl:translate-y-0"
                         photo={photo} 
                       />}
-                  </div>
                 </div>
+                {showStorageCheck &&
+                    <AdminPhotoStorageCheck photo={photo} />}
               </div>
             </DivDebugBaselineGrid>
           </MaskedScroll>
